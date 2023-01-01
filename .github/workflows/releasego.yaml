@@ -20,11 +20,10 @@ jobs:
         with:
           version: latest
           args: release --rm-dist
-          workdir: .
+          
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      -
-        name: Upload assets
+      - name: Upload assets
         uses: actions/upload-artifact@v3
         with:
           name: myapp
