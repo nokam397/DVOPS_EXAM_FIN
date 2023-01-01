@@ -1,0 +1,71 @@
+on:
+  pull_request:
+  push:
+  workflow_dispatch:
+jobs:
+
+  lint:
+    name: Lint Code Base
+    runs-on: ubuntu-latest
+    if: (github.actor != 'dependabot[bot]' && github.event_name == 'pull_request')
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+
+      - name: 'Lint Code Base'
+        uses: github/super-linter/slim@v4
+        env:
+          VALIDATE_ALL_CODEBASE: false 
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} 
+
+  semgrep:
+    name: Semgrep
+    runs-on: ubuntu-latest
+    permissions:
+      security-events: write
+    container: 
+      image: returntocorp/semgrep:1.1.0
+    
+    if: (github.actor != 'dependabot[bot]')
+    steps:
+      - name: "Checkout source"
+        uses: actions/checkout@v3
+      
+      - name: "Execute semgrep"
+        run: semgrep ci --sarif --output=semgrep.sarif
+        env:
+          
+          SEMGREP_RULES: p/default
+
+      - name: "Upload SARIF file for GitHub CodeQL"
+        uses: github/codeql-action/upload-sarif@v2
+        with:
+          sarif_file: semgrep.sarif
+        if: always()
+
+  hadolint:
+    name: "Hadolint scan"
+    runs-on: ubuntu-latest
+    permissions:
+      security-events: write
+   
+    if: (github.actor != 'dependabot[bot]')
+    steps:
+      - name: "Checkout code"
+        uses: actions/checkout@v3
+
+      - name: "Run hadolint"
+        uses: hadolint/hadolint-action@v2.1.0
+        with:
+          dockerfile: ./Dockerfile
+          format: sarif
+          output-file: hadolint-results.sarif
+
+      - name: "Upload analysis results to GitHub"
+        uses: github/codeql-action/upload-sarif@v2
+        if: always()
+        with:
+          sarif_file: hadolint-results.sarif
+          wait-for-processing: true
